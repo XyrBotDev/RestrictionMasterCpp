@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: restriction-master-cpp
+    runtime: docker
+    buildCommand: cmake -S . -B build && cmake --build build --parallel
+    startCommand: ./build/RestrictionMasterCpp
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: OWNER_ID
+        sync: false
