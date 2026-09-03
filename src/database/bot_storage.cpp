@@ -3,9 +3,16 @@
 #include <algorithm>
 #include <vector>
 
+// Temporary in-memory implementation.
+// MongoDB driver integration will replace this storage layer.
+
 class MemoryBotStorage : public BotStorage {
 public:
     bool saveBot(const Bot& bot) override {
+        if (bot.number <= 0 || bot.number > 99) {
+            return false;
+        }
+
         for (auto& existing : bots_) {
             if (existing.number == bot.number) {
                 existing = bot;
