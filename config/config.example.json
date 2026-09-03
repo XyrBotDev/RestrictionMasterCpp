@@ -1,1 +1,6 @@
-
+{
+  "mongodb_uri": "YOUR_MONGODB_URI",
+  "database_name": "restriction_master",
+  "main_bot_token": "YOUR_MAIN_BOT_TOKEN",
+  "owner_id": "YOUR_OWNER_ID"
+}
