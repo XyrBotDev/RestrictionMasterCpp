@@ -15,6 +15,7 @@ add_executable(RestrictionMasterCpp
 
     src/config/config_loader.cpp
 
+    src/core/access_control.cpp
     src/core/bot_manager.cpp
     src/core/bot_registry.cpp
 
