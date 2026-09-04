@@ -30,4 +30,6 @@ private:
         std::int64_t userId,
         int botNumber
     );
+
+    std::string handleDummyRefresh(std::int64_t userId);
 };
