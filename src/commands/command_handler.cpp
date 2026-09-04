@@ -51,6 +51,13 @@ std::string CommandHandler::handle(
     if (cmd == "botstats") {
         return handleBotStats(userId);
     }
+    if (cmd == "dummy") {
+    return handleDummy(userId);
+}
+
+if (cmd == "rdummy") {
+    return handleRemoveDummy(userId);
+}
 
     if (cmd == "botmin") {
         return handleBotMaintenance(userId, arguments);
