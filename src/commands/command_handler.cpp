@@ -51,16 +51,17 @@ std::string CommandHandler::handle(
     if (cmd == "botstats") {
         return handleBotStats(userId);
     }
-    if (cmd == "dummy") {
-    return handleDummy(userId);
-}
-
-if (cmd == "rdummy") {
-    return handleRemoveDummy(userId);
-}
 
     if (cmd == "botmin") {
         return handleBotMaintenance(userId, arguments);
+    }
+
+    if (cmd == "dummy") {
+        return handleDummy(userId, arguments);
+    }
+
+    if (cmd == "rdummy") {
+        return handleRemoveDummy(userId);
     }
 
     return "❌ Unknown command. Use /help";
@@ -215,4 +216,43 @@ std::string CommandHandler::handleBotMaintenance(
     return enabled
         ? "🔧 Maintenance **ON** for bot #" + std::to_string(botNumber)
         : "✅ Maintenance **OFF** for bot #" + std::to_string(botNumber);
+}
+
+std::string CommandHandler::handleDummy(
+    std::int64_t userId,
+    const std::string& arguments
+) {
+    (void)userId;
+
+    if (arguments.empty()) {
+        return
+            "📢 **Dummy Channel Setup**\n\n"
+            "Please add me to your authorized channel and then press Refresh.";
+    }
+
+    std::string channel = arguments;
+
+    if (channel[0] != '@') {
+        channel = "@" + channel;
+    }
+
+    if (!botManager_.setDummyChannel(channel)) {
+        return "❌ Failed to set dummy channel.";
+    }
+
+    return
+        "✅ **Dummy Channel Set**\n\n"
+        "Channel: " + channel;
+}
+
+std::string CommandHandler::handleRemoveDummy(
+    std::int64_t userId
+) {
+    (void)userId;
+
+    if (!botManager_.removeDummyChannel()) {
+        return "❌ No dummy channel is configured.";
+    }
+
+    return "✅ Dummy channel removed.";
 }
