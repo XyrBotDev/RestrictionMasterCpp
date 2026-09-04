@@ -24,11 +24,18 @@ private:
     std::string handleSettings(std::int64_t userId);
     std::string handleBotList(std::int64_t userId);
     std::string handleBotStats(std::int64_t userId);
+
     std::string handleBotMaintenance(
         std::int64_t userId,
         const std::string& arguments
     );
-   std::string handleDummy(std::int64_t userId);
-std::string handleRemoveDummy(std::int64_t userId);
 
+    std::string handleDummy(
+        std::int64_t userId,
+        const std::string& arguments
+    );
+
+    std::string handleRemoveDummy(
+        std::int64_t userId
+    );
 };
