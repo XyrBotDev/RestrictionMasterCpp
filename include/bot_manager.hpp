@@ -1,8 +1,10 @@
 #pragma once
 
 #include "bot.hpp"
-#include <vector>
+
 #include <optional>
+#include <string>
+#include <vector>
 
 class BotManager {
 public:
@@ -14,6 +16,12 @@ public:
 
     bool setMaintenance(int number, bool enabled);
 
+    bool setDummyChannel(const std::string& channel);
+    bool removeDummyChannel();
+    std::string getDummyChannel() const;
+    bool hasDummyChannel() const;
+
 private:
     std::vector<Bot> bots_;
+    std::string dummyChannel_;
 };
