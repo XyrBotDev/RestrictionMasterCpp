@@ -1,60 +1,47 @@
-#include "../../include/bot_service.hpp"
+#pragma once
 
-BotService::BotService(
-    std::int64_t botNumber,
-    const std::string& token,
-    BotManager& botManager
-)
-    : botNumber_(botNumber),
-      token_(token),
-      botManager_(botManager),
-      commandHandler_(botManager),
-      callbackHandler_(commandHandler_, botManager) {}
+#include "bot_manager.hpp"
+#include "command_handler.hpp"
+#include "callback_handler.hpp"
 
-bool BotService::start() {
-    if (token_.empty()) {
-        return false;
-    }
+#include <cstdint>
+#include <string>
 
-    running_ = true;
-    return true;
-}
+class AccessControl;
 
-bool BotService::stop() {
-    running_ = false;
-    return true;
-}
-
-bool BotService::isRunning() const {
-    return running_;
-}
-
-std::string BotService::handleCommand(
-    std::int64_t userId,
-    const std::string& command,
-    const std::string& arguments
-) {
-    if (!running_) {
-        return "❌ Bot is not running.";
-    }
-
-    return commandHandler_.handle(
-        userId,
-        command,
-        arguments
+class BotService {
+public:
+    BotService(
+        std::int64_t botNumber,
+        const std::string& token,
+        BotManager& botManager,
+        AccessControl& accessControl
     );
-}
 
-std::string BotService::handleCallback(
-    std::int64_t userId,
-    const std::string& callbackData
-) {
-    if (!running_) {
-        return "❌ Bot is not running.";
-    }
+    bool start();
+    bool stop();
 
-    return callbackHandler_.handle(
-        userId,
-        callbackData
+    bool isRunning() const;
+
+    std::string handleCommand(
+        std::int64_t userId,
+        const std::string& command,
+        const std::string& arguments
     );
-}
+
+    std::string handleCallback(
+        std::int64_t userId,
+        const std::string& callbackData
+    );
+
+private:
+    std::int64_t botNumber_;
+    std::string token_;
+
+    bool running_ = false;
+
+    BotManager& botManager_;
+    AccessControl& accessControl_;
+    CommandHandler commandHandler_;
+    CallbackHandler callbackHandler_;
+};
