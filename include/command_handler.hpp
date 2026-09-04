@@ -4,10 +4,14 @@
 #include <string>
 
 class BotManager;
+class AccessControl;
 
 class CommandHandler {
 public:
-    explicit CommandHandler(BotManager& botManager);
+    CommandHandler(
+        BotManager& botManager,
+        AccessControl& accessControl
+    );
 
     std::string handle(
         std::int64_t userId,
@@ -17,6 +21,7 @@ public:
 
 private:
     BotManager& botManager_;
+    AccessControl& accessControl_;
 
     std::string handleStart(std::int64_t userId);
     std::string handleHelp(std::int64_t userId);
