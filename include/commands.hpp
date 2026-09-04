@@ -73,4 +73,7 @@ std::string clearLogs();
 std::string exportUsers();
 std::string adminHelp();
 
+std::string dummy();
+std::string removeDummy();
+
 }
