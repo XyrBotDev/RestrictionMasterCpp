@@ -70,5 +70,7 @@ std::string sendMessage() { return "/sendmsg"; }
 std::string clearLogs() { return "/clearlogs"; }
 std::string exportUsers() { return "/export"; }
 std::string adminHelp() { return "/adminhelp"; }
+std::string dummy()  {  return "/dummy"; }
+std::string removeDummy() {    return "/rdummy"; }
 
 }
