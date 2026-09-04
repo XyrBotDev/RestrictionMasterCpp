@@ -28,4 +28,7 @@ private:
         std::int64_t userId,
         const std::string& arguments
     );
+   std::string handleDummy(std::int64_t userId);
+std::string handleRemoveDummy(std::int64_t userId);
+
 };
