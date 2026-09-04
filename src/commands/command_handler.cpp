@@ -1,12 +1,17 @@
 #include "../../include/command_handler.hpp"
 #include "../../include/bot_manager.hpp"
+#include "../../include/access_control.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <sstream>
 
-CommandHandler::CommandHandler(BotManager& botManager)
-    : botManager_(botManager) {}
+CommandHandler::CommandHandler(
+    BotManager& botManager,
+    AccessControl& accessControl
+)
+    : botManager_(botManager),
+      accessControl_(accessControl) {}
 
 std::string CommandHandler::handle(
     std::int64_t userId,
@@ -53,14 +58,26 @@ std::string CommandHandler::handle(
     }
 
     if (cmd == "botmin") {
+        if (!accessControl_.isAdmin(userId)) {
+            return "❌ Admin access required.";
+        }
+
         return handleBotMaintenance(userId, arguments);
     }
 
     if (cmd == "dummy") {
+        if (!accessControl_.isAdmin(userId)) {
+            return "❌ Admin access required.";
+        }
+
         return handleDummy(userId, arguments);
     }
 
     if (cmd == "rdummy") {
+        if (!accessControl_.isAdmin(userId)) {
+            return "❌ Admin access required.";
+        }
+
         return handleRemoveDummy(userId);
     }
 
