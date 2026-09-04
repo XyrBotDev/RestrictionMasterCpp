@@ -27,16 +27,19 @@ std::string extractString(
     }
 
     const auto colon = content.find(':', keyPos + search.size());
+
     if (colon == std::string::npos) {
         return "";
     }
 
     const auto firstQuote = content.find('"', colon + 1);
+
     if (firstQuote == std::string::npos) {
         return "";
     }
 
     const auto secondQuote = content.find('"', firstQuote + 1);
+
     if (secondQuote == std::string::npos) {
         return "";
     }
@@ -51,47 +54,14 @@ std::int64_t extractInteger(
     const std::string& content,
     const std::string& key
 ) {
-    const std::string search = "\"" + key + "\"";
-    const auto keyPos = content.find(search);
+    const std::string value = extractString(content, key);
 
-    if (keyPos == std::string::npos) {
-        return 0;
-    }
-
-    const auto colon = content.find(':', keyPos + search.size());
-    if (colon == std::string::npos) {
-        return 0;
-    }
-
-    auto start = colon + 1;
-
-    while (
-        start < content.size() &&
-        (content[start] == ' ' ||
-         content[start] == '\t' ||
-         content[start] == '\r' ||
-         content[start] == '\n')
-    ) {
-        ++start;
-    }
-
-    auto end = start;
-
-    while (
-        end < content.size() &&
-        (content[end] >= '0' && content[end] <= '9')
-    ) {
-        ++end;
-    }
-
-    if (start == end) {
+    if (value.empty()) {
         return 0;
     }
 
     try {
-        return std::stoll(
-            trim(content.substr(start, end - start))
-        );
+        return std::stoll(trim(value));
     } catch (...) {
         return 0;
     }
@@ -114,10 +84,25 @@ bool ConfigLoader::load(
 
     const std::string content = buffer.str();
 
-    config.bot_token = extractString(content, "BOT_TOKEN");
-    config.mongo_uri = extractString(content, "MONGO_URI");
-    config.database_name = extractString(content, "DATABASE_NAME");
-    config.owner_id = extractInteger(content, "OWNER_ID");
+    config.bot_token = extractString(
+        content,
+        "main_bot_token"
+    );
+
+    config.mongo_uri = extractString(
+        content,
+        "mongodb_uri"
+    );
+
+    config.database_name = extractString(
+        content,
+        "database_name"
+    );
+
+    config.owner_id = extractInteger(
+        content,
+        "owner_id"
+    );
 
     if (config.bot_token.empty() ||
         config.mongo_uri.empty() ||
