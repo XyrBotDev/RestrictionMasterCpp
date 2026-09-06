@@ -1,70 +1,18 @@
 #include "../../include/config_loader.hpp"
 
-#include <fstream>
-#include <sstream>
+#include <cstdlib>
+#include <string>
 
 namespace {
 
-std::string trim(const std::string& value) {
-    const auto first = value.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
+std::string getEnv(const char* name) {
+    const char* value = std::getenv(name);
+
+    if (value == nullptr) {
         return "";
     }
 
-    const auto last = value.find_last_not_of(" \t\r\n");
-    return value.substr(first, last - first + 1);
-}
-
-std::string extractString(
-    const std::string& content,
-    const std::string& key
-) {
-    const std::string search = "\"" + key + "\"";
-    const auto keyPos = content.find(search);
-
-    if (keyPos == std::string::npos) {
-        return "";
-    }
-
-    const auto colon = content.find(':', keyPos + search.size());
-
-    if (colon == std::string::npos) {
-        return "";
-    }
-
-    const auto firstQuote = content.find('"', colon + 1);
-
-    if (firstQuote == std::string::npos) {
-        return "";
-    }
-
-    const auto secondQuote = content.find('"', firstQuote + 1);
-
-    if (secondQuote == std::string::npos) {
-        return "";
-    }
-
-    return content.substr(
-        firstQuote + 1,
-        secondQuote - firstQuote - 1
-    );
-}
-
-std::int64_t extractInteger(
-    const std::string& content,
-    const std::string& key
-) {
-    const std::string value = extractString(content, key);
-
-    if (value.empty()) {
-        return 0;
-    }
-
-    try {
-        return std::stoll(trim(value));
-    } catch (...) {
-        return 0;
-    }
+    return value;
 }
 
 }
@@ -73,43 +21,28 @@ bool ConfigLoader::load(
     const std::string& filePath,
     AppConfig& config
 ) {
-    std::ifstream file(filePath);
+    // filePath is kept for compatibility with the existing interface.
+    (void)filePath;
 
-    if (!file.is_open()) {
-        return false;
-    }
+    config.bot_token = getEnv("BOT_TOKEN");
+    config.mongo_uri = getEnv("MONGO_URI");
+    config.database_name = getEnv("DATABASE_NAME");
 
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-
-    const std::string content = buffer.str();
-
-    config.bot_token = extractString(
-        content,
-        "main_bot_token"
-    );
-
-    config.mongo_uri = extractString(
-        content,
-        "mongodb_uri"
-    );
-
-    config.database_name = extractString(
-        content,
-        "database_name"
-    );
-
-    config.owner_id = extractInteger(
-        content,
-        "owner_id"
-    );
+    const std::string ownerId = getEnv("OWNER_ID");
 
     if (config.bot_token.empty() ||
         config.mongo_uri.empty() ||
         config.database_name.empty() ||
-        config.owner_id == 0) {
+        ownerId.empty()) {
         return false;
     }
 
-    return true;
+    try {
+        config.owner_id = std::stoll(ownerId);
+    } catch (...) {
+        config.owner_id = 0;
+        return false;
+    }
+
+    return config.owner_id != 0;
 }
