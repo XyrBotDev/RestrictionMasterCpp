@@ -9,7 +9,7 @@ int main() {
     AppConfig config;
 
     if (!ConfigLoader::load("", config)) {
-        std::cerr << "Failed to load config/config.json"
+        std::cerr << "Failed to load environment configuration."
                   << std::endl;
         return 1;
     }
