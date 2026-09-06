@@ -8,7 +8,7 @@
 int main() {
     AppConfig config;
 
-    if (!ConfigLoader::load("config/config.json", config)) {
+    if (!ConfigLoader::load("", config)) {
         std::cerr << "Failed to load config/config.json"
                   << std::endl;
         return 1;
