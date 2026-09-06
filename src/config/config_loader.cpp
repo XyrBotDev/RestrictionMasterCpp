@@ -1,6 +1,7 @@
 #include "../../include/config_loader.hpp"
 
 #include <cstdlib>
+#include <iostream>
 #include <string>
 
 namespace {
@@ -15,13 +16,26 @@ std::string getEnv(const char* name) {
     return value;
 }
 
+bool checkVariable(
+    const char* name,
+    const std::string& value
+) {
+    if (value.empty()) {
+        std::cerr << "Missing environment variable: "
+                  << name
+                  << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 }
 
 bool ConfigLoader::load(
     const std::string& filePath,
     AppConfig& config
 ) {
-    // filePath is kept for compatibility with the existing interface.
     (void)filePath;
 
     config.bot_token = getEnv("BOT_TOKEN");
@@ -30,19 +44,47 @@ bool ConfigLoader::load(
 
     const std::string ownerId = getEnv("OWNER_ID");
 
-    if (config.bot_token.empty() ||
-        config.mongo_uri.empty() ||
-        config.database_name.empty() ||
-        ownerId.empty()) {
+    bool valid = true;
+
+    valid &= checkVariable(
+        "BOT_TOKEN",
+        config.bot_token
+    );
+
+    valid &= checkVariable(
+        "MONGO_URI",
+        config.mongo_uri
+    );
+
+    valid &= checkVariable(
+        "DATABASE_NAME",
+        config.database_name
+    );
+
+    valid &= checkVariable(
+        "OWNER_ID",
+        ownerId
+    );
+
+    if (!valid) {
         return false;
     }
 
     try {
         config.owner_id = std::stoll(ownerId);
     } catch (...) {
+        std::cerr << "Invalid OWNER_ID."
+                  << std::endl;
+
         config.owner_id = 0;
         return false;
     }
 
-    return config.owner_id != 0;
+    if (config.owner_id == 0) {
+        std::cerr << "Invalid OWNER_ID."
+                  << std::endl;
+        return false;
+    }
+
+    return true;
 }
