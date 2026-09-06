@@ -1,4 +1,6 @@
+#include <chrono>
 #include <iostream>
+#include <thread>
 
 #include "../include/config_loader.hpp"
 #include "../include/access_control.hpp"
@@ -48,10 +50,14 @@ int main() {
         << std::endl;
 
     std::cout
-    << "Main bot service is running."
-    << std::endl;
+        << "Main bot service is running."
+        << std::endl;
 
-while (botService.isRunning()) {
+    while (botService.isRunning()) {
+        std::this_thread::sleep_for(
+            std::chrono::seconds(1)
+        );
+    }
+
+    return 0;
 }
-
-return 0;
