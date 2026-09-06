@@ -48,8 +48,10 @@ int main() {
         << std::endl;
 
     std::cout
-        << "Main bot service is running."
-        << std::endl;
+    << "Main bot service is running."
+    << std::endl;
 
-    return 0;
+while (botService.isRunning()) {
 }
+
+return 0;
