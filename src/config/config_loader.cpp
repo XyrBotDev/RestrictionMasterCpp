@@ -39,7 +39,7 @@ bool ConfigLoader::load(
     (void)filePath;
 
     config.bot_token = getEnv("BOT_TOKEN");
-    config.mongo_uri = getEnv("MONGO_URI");
+    config.mongo_uri = getEnv("MONGO_URL");
     config.database_name = getEnv("DATABASE_NAME");
 
     const std::string ownerId = getEnv("OWNER_ID");
