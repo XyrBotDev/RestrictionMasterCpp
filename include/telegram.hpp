@@ -12,7 +12,6 @@ public:
 
     bool isRunning() const;
 
-    // Telegram Bot API
     bool getMe(
         std::string& botId,
         std::string& username
@@ -28,6 +27,12 @@ public:
         const std::string& text
     ) const;
 
+    bool sendMessageWithKeyboard(
+        std::int64_t chatId,
+        const std::string& text,
+        const std::string& replyMarkup
+    ) const;
+
     bool answerCallbackQuery(
         const std::string& callbackQueryId
     ) const;
@@ -38,17 +43,18 @@ public:
         const std::string& text
     ) const;
 
+    bool editMessageTextWithKeyboard(
+        std::int64_t chatId,
+        std::int64_t messageId,
+        const std::string& text,
+        const std::string& replyMarkup
+    ) const;
+
 private:
     std::string botToken_;
     bool running_ = false;
 
     bool request(
-        const std::string& method,
-        const std::string& parameters,
-        std::string& response
-    ) const;
-
-    bool requestPost(
         const std::string& method,
         const std::string& parameters,
         std::string& response
