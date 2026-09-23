@@ -189,7 +189,8 @@ bool TelegramClient::getMe(
     username.clear();
 
     const std::string idKey = "\"id\":";
-    const std::string usernameKey = "\"username\":\"";
+    const std::string usernameKey =
+        "\"username\":\"";
 
     const std::size_t idPosition =
         response.find(idKey);
@@ -218,7 +219,8 @@ bool TelegramClient::getMe(
 
     if (usernamePosition != std::string::npos) {
         const std::size_t start =
-            usernamePosition + usernameKey.size();
+            usernamePosition +
+            usernameKey.size();
 
         const std::size_t end =
             response.find(
@@ -275,6 +277,30 @@ bool TelegramClient::sendMessage(
         std::string::npos;
 }
 
+bool TelegramClient::sendMessageWithKeyboard(
+    std::int64_t chatId,
+    const std::string& text,
+    const std::string& replyMarkup
+) const {
+    const std::string parameters =
+        "chat_id=" +
+        std::to_string(chatId) +
+        "&text=" +
+        urlEncode(text) +
+        "&reply_markup=" +
+        urlEncode(replyMarkup);
+
+    std::string response;
+
+    return request(
+        "sendMessage",
+        parameters,
+        response
+    ) &&
+    response.find("\"ok\":true") !=
+        std::string::npos;
+}
+
 bool TelegramClient::answerCallbackQuery(
     const std::string& callbackQueryId
 ) const {
@@ -305,6 +331,33 @@ bool TelegramClient::editMessageText(
         std::to_string(messageId) +
         "&text=" +
         urlEncode(text);
+
+    std::string response;
+
+    return request(
+        "editMessageText",
+        parameters,
+        response
+    ) &&
+    response.find("\"ok\":true") !=
+        std::string::npos;
+}
+
+bool TelegramClient::editMessageTextWithKeyboard(
+    std::int64_t chatId,
+    std::int64_t messageId,
+    const std::string& text,
+    const std::string& replyMarkup
+) const {
+    const std::string parameters =
+        "chat_id=" +
+        std::to_string(chatId) +
+        "&message_id=" +
+        std::to_string(messageId) +
+        "&text=" +
+        urlEncode(text) +
+        "&reply_markup=" +
+        urlEncode(replyMarkup);
 
     std::string response;
 
