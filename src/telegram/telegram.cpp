@@ -17,10 +17,12 @@ size_t writeCallback(
     auto* output =
         static_cast<std::string*>(userData);
 
-    output->append(
-        static_cast<char*>(contents),
-        totalSize
-    );
+    if (output != nullptr) {
+        output->append(
+            static_cast<char*>(contents),
+            totalSize
+        );
+    }
 
     return totalSize;
 }
@@ -28,25 +30,24 @@ size_t writeCallback(
 }
 
 TelegramClient::TelegramClient(
-    const std::string& bot_token
+    const std::string& botToken
 )
-    : bot_token_(bot_token) {}
+    : botToken_(botToken) {}
 
 bool TelegramClient::start() {
-    if (bot_token_.empty()) {
+    if (botToken_.empty()) {
         return false;
     }
 
-    std::string response;
+    std::string botId;
+    std::string username;
 
-    if (!getMe(
-            response,
-            response
-        )) {
+    if (!getMe(botId, username)) {
         return false;
     }
 
     running_ = true;
+
     return true;
 }
 
@@ -59,30 +60,61 @@ bool TelegramClient::isRunning() const {
     return running_;
 }
 
+std::string TelegramClient::urlEncode(
+    const std::string& value
+) const {
+    CURL* curl = curl_easy_init();
+
+    if (curl == nullptr) {
+        return value;
+    }
+
+    char* encoded =
+        curl_easy_escape(
+            curl,
+            value.c_str(),
+            static_cast<int>(value.size())
+        );
+
+    std::string result;
+
+    if (encoded != nullptr) {
+        result = encoded;
+        curl_free(encoded);
+    } else {
+        result = value;
+    }
+
+    curl_easy_cleanup(curl);
+
+    return result;
+}
+
 bool TelegramClient::request(
     const std::string& method,
     const std::string& parameters,
     std::string& response
 ) const {
-    if (bot_token_.empty()) {
+    if (botToken_.empty()) {
         return false;
     }
 
     CURL* curl = curl_easy_init();
 
-    if (!curl) {
+    if (curl == nullptr) {
         return false;
     }
 
-    std::string url =
-        "https://api.telegram.org/bot" +
-        bot_token_ +
-        "/" +
-        method;
+    response.clear();
 
-    if (!parameters.empty()) {
-        url += "?" + parameters;
-    }
+    const std::string url =
+        "https://api.telegram.org/bot" +
+        botToken_ +
+        "/" +
+        method +
+        (parameters.empty()
+            ? ""
+            : "?" + parameters);
 
     curl_easy_setopt(
         curl,
@@ -105,13 +137,25 @@ bool TelegramClient::request(
     curl_easy_setopt(
         curl,
         CURLOPT_TIMEOUT,
-        30L
+        35L
+    );
+
+    curl_easy_setopt(
+        curl,
+        CURLOPT_CONNECTTIMEOUT,
+        10L
     );
 
     curl_easy_setopt(
         curl,
         CURLOPT_FOLLOWLOCATION,
         1L
+    );
+
+    curl_easy_setopt(
+        curl,
+        CURLOPT_USERAGENT,
+        "RestrictionMasterCpp/1.0"
     );
 
     const CURLcode result =
@@ -141,8 +185,55 @@ bool TelegramClient::getMe(
         return false;
     }
 
-    botId = response;
-    username = response;
+    botId.clear();
+    username.clear();
+
+    const std::string idKey = "\"id\":";
+    const std::string usernameKey = "\"username\":\"";
+
+    const std::size_t idPosition =
+        response.find(idKey);
+
+    if (idPosition != std::string::npos) {
+        const std::size_t start =
+            idPosition + idKey.size();
+
+        const std::size_t end =
+            response.find_first_of(
+                ",}",
+                start
+            );
+
+        if (end != std::string::npos) {
+            botId =
+                response.substr(
+                    start,
+                    end - start
+                );
+        }
+    }
+
+    const std::size_t usernamePosition =
+        response.find(usernameKey);
+
+    if (usernamePosition != std::string::npos) {
+        const std::size_t start =
+            usernamePosition + usernameKey.size();
+
+        const std::size_t end =
+            response.find(
+                "\"",
+                start
+            );
+
+        if (end != std::string::npos) {
+            username =
+                response.substr(
+                    start,
+                    end - start
+                );
+        }
+    }
 
     return true;
 }
@@ -161,4 +252,67 @@ bool TelegramClient::getUpdates(
         parameters,
         response
     );
+}
+
+bool TelegramClient::sendMessage(
+    std::int64_t chatId,
+    const std::string& text
+) const {
+    const std::string parameters =
+        "chat_id=" +
+        std::to_string(chatId) +
+        "&text=" +
+        urlEncode(text);
+
+    std::string response;
+
+    return request(
+        "sendMessage",
+        parameters,
+        response
+    ) &&
+    response.find("\"ok\":true") !=
+        std::string::npos;
+}
+
+bool TelegramClient::answerCallbackQuery(
+    const std::string& callbackQueryId
+) const {
+    const std::string parameters =
+        "callback_query_id=" +
+        urlEncode(callbackQueryId);
+
+    std::string response;
+
+    return request(
+        "answerCallbackQuery",
+        parameters,
+        response
+    ) &&
+    response.find("\"ok\":true") !=
+        std::string::npos;
+}
+
+bool TelegramClient::editMessageText(
+    std::int64_t chatId,
+    std::int64_t messageId,
+    const std::string& text
+) const {
+    const std::string parameters =
+        "chat_id=" +
+        std::to_string(chatId) +
+        "&message_id=" +
+        std::to_string(messageId) +
+        "&text=" +
+        urlEncode(text);
+
+    std::string response;
+
+    return request(
+        "editMessageText",
+        parameters,
+        response
+    ) &&
+    response.find("\"ok\":true") !=
+        std::string::npos;
 }
