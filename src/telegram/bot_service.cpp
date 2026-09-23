@@ -1,5 +1,6 @@
 #include "../../include/bot_service.hpp"
 #include "../../include/access_control.hpp"
+#include "../../include/keyboards.hpp"
 
 #include <chrono>
 #include <cctype>
@@ -41,6 +42,111 @@ std::string trim(
         start,
         end - start
     );
+}
+
+std::string keyboardForCommand(
+    const std::string& command,
+    const std::string& arguments
+) {
+    (void)arguments;
+
+    if (command == "/start") {
+        return Keyboards::mainMenu();
+    }
+
+    if (command == "/premium") {
+        return Keyboards::premiumMenu();
+    }
+
+    if (command == "/settings") {
+        return Keyboards::settingsMenu();
+    }
+
+    if (command == "/botlist") {
+        return Keyboards::botList();
+    }
+
+    if (command == "/dummy") {
+        return Keyboards::dummyRefresh();
+    }
+
+    return "";
+}
+
+std::string keyboardForCallback(
+    const std::string& callbackData
+) {
+    if (callbackData == "main_menu") {
+        return Keyboards::mainMenu();
+    }
+
+    if (callbackData == "premium") {
+        return Keyboards::premiumMenu();
+    }
+
+    if (
+        callbackData == "settings" ||
+        callbackData == "settings_notifications" ||
+        callbackData == "settings_silent" ||
+        callbackData == "settings_language"
+    ) {
+        return Keyboards::settingsMenu();
+    }
+
+    if (callbackData == "bot_list") {
+        return Keyboards::botList();
+    }
+
+    if (
+        callbackData.rfind(
+            "bot_control:",
+            0
+        ) == 0
+    ) {
+        try {
+            return Keyboards::maintenanceMenu(
+                std::stoi(
+                    callbackData.substr(12)
+                )
+            );
+        } catch (...) {
+            return "";
+        }
+    }
+
+    if (
+        callbackData.rfind(
+            "maintenance_on:",
+            0
+        ) == 0 ||
+        callbackData.rfind(
+            "maintenance_off:",
+            0
+        ) == 0
+    ) {
+        const std::size_t separator =
+            callbackData.find(':');
+
+        if (separator != std::string::npos) {
+            try {
+                return Keyboards::maintenanceMenu(
+                    std::stoi(
+                        callbackData.substr(
+                            separator + 1
+                        )
+                    )
+                );
+            } catch (...) {
+                return "";
+            }
+        }
+    }
+
+    if (callbackData == "dummy_refresh") {
+        return Keyboards::dummyRefresh();
+    }
+
+    return "";
 }
 
 }
@@ -93,10 +199,12 @@ bool BotService::start() {
     std::string botId;
     std::string username;
 
-    if (!telegramClient_.getMe(
+    if (
+        !telegramClient_.getMe(
             botId,
             username
-        )) {
+        )
+    ) {
         std::cerr
             << "Unable to verify Telegram bot."
             << std::endl;
@@ -125,7 +233,6 @@ bool BotService::start() {
     }
 
     updateOffset_ = 0;
-
     running_ = true;
 
     pollingThread_ =
@@ -253,6 +360,7 @@ bool BotService::extractInt(
         }
 
         return true;
+
     } catch (...) {
         return false;
     }
@@ -284,8 +392,7 @@ bool BotService::extractString(
         i < json.size();
         ++i
     ) {
-        const char character =
-            json[i];
+        const char character = json[i];
 
         if (escaped) {
             switch (character) {
@@ -379,8 +486,7 @@ bool BotService::extractObject(
         i < json.size();
         ++i
     ) {
-        const char character =
-            json[i];
+        const char character = json[i];
 
         if (escaped) {
             escaped = false;
@@ -429,11 +535,13 @@ void BotService::processUpdate(
 ) {
     std::int64_t updateId = 0;
 
-    if (!extractInt(
+    if (
+        !extractInt(
             update,
             "update_id",
             updateId
-        )) {
+        )
+    ) {
         return;
     }
 
@@ -442,71 +550,71 @@ void BotService::processUpdate(
             updateId + 1;
     }
 
-    /*
-     * Normal message
-     */
     std::string fullMessage;
 
-    if (extractObject(
+    if (
+        extractObject(
             update,
             "message",
             fullMessage
-        )) {
+        )
+    ) {
         std::int64_t userId = 0;
         std::int64_t chatId = 0;
 
-        /*
-         * message.from.id
-         */
         std::string from;
 
-        if (extractObject(
+        if (
+            extractObject(
                 fullMessage,
                 "from",
                 from
-            )) {
-            if (!extractInt(
+            )
+        ) {
+            if (
+                !extractInt(
                     from,
                     "id",
                     userId
-                )) {
+                )
+            ) {
                 return;
             }
         } else {
             return;
         }
 
-        /*
-         * message.chat.id
-         */
         std::string chat;
 
-        if (extractObject(
+        if (
+            extractObject(
                 fullMessage,
                 "chat",
                 chat
-            )) {
-            if (!extractInt(
+            )
+        ) {
+            if (
+                !extractInt(
                     chat,
                     "id",
                     chatId
-                )) {
+                )
+            ) {
                 return;
             }
         } else {
             return;
         }
 
-        /*
-         * message.text
-         */
         std::string text;
 
-        if (!extractString(
+        if (
+            !extractString(
                 fullMessage,
                 "text",
                 text
-            )) {
+            )
+        ) {
             return;
         }
 
@@ -539,10 +647,6 @@ void BotService::processUpdate(
                 );
         }
 
-        /*
-         * Only commands are handled
-         * at this stage.
-         */
         if (
             !command.empty() &&
             command[0] == '/'
@@ -566,10 +670,25 @@ void BotService::processUpdate(
                 );
 
             if (!reply.empty()) {
-                if (!telegramClient_.sendMessage(
-                        chatId,
-                        reply
-                    )) {
+                const std::string keyboard =
+                    keyboardForCommand(
+                        command,
+                        arguments
+                    );
+
+                const bool sent =
+                    keyboard.empty()
+                        ? telegramClient_.sendMessage(
+                            chatId,
+                            reply
+                        )
+                        : telegramClient_.sendMessageWithKeyboard(
+                            chatId,
+                            reply,
+                            keyboard
+                        );
+
+                if (!sent) {
                     std::cerr
                         << "Failed to send command response."
                         << std::endl;
@@ -580,101 +699,83 @@ void BotService::processUpdate(
         return;
     }
 
-    /*
-     * Callback query
-     */
     std::string callback;
 
-    if (extractObject(
+    if (
+        extractObject(
             update,
             "callback_query",
             callback
-        )) {
+        )
+    ) {
         std::int64_t userId = 0;
 
         std::string callbackData;
         std::string callbackId;
 
-        /*
-         * callback_query.from.id
-         */
         std::string from;
 
-        if (extractObject(
+        if (
+            extractObject(
                 callback,
                 "from",
                 from
-            )) {
-            if (!extractInt(
+            )
+        ) {
+            if (
+                !extractInt(
                     from,
                     "id",
                     userId
-                )) {
+                )
+            ) {
                 return;
             }
         } else {
             return;
         }
 
-        /*
-         * callback_query.id
-         *
-         * This is a STRING, not a user ID.
-         */
-        if (!extractString(
+        if (
+            !extractString(
                 callback,
                 "id",
                 callbackId
-            )) {
+            )
+        ) {
             return;
         }
 
-        /*
-         * callback_query.data
-         */
         extractString(
             callback,
             "data",
             callbackData
         );
 
-        /*
-         * Always acknowledge the callback.
-         */
         telegramClient_.answerCallbackQuery(
             callbackId
         );
 
-        /*
-         * Callback message.
-         */
         std::string callbackMessage;
 
-        if (!extractObject(
+        if (
+            !extractObject(
                 callback,
                 "message",
                 callbackMessage
-            )) {
+            )
+        ) {
             return;
         }
 
-        /*
-         * callback_query.message.message_id
-         */
         std::int64_t messageId = 0;
 
-        if (!extractInt(
+        if (
+            !extractInt(
                 callbackMessage,
                 "message_id",
                 messageId
-            )) {
-            /*
-             * Telegram callback message uses
-             * "message_id" in our extracted object
-             * only when this object is wrapped.
-             *
-             * Fallback to the standard message "id".
-             */
+            )
+        ) {
             extractInt(
                 callbackMessage,
                 "id",
@@ -682,18 +783,17 @@ void BotService::processUpdate(
             );
         }
 
-        /*
-         * callback_query.message.chat.id
-         */
         std::int64_t chatId = 0;
 
         std::string chat;
 
-        if (extractObject(
+        if (
+            extractObject(
                 callbackMessage,
                 "chat",
                 chat
-            )) {
+            )
+        ) {
             extractInt(
                 chat,
                 "id",
@@ -716,11 +816,26 @@ void BotService::processUpdate(
             chatId != 0 &&
             messageId != 0
         ) {
-            if (!telegramClient_.editMessageText(
-                    chatId,
-                    messageId,
-                    reply
-                )) {
+            const std::string keyboard =
+                keyboardForCallback(
+                    callbackData
+                );
+
+            const bool edited =
+                keyboard.empty()
+                    ? telegramClient_.editMessageText(
+                        chatId,
+                        messageId,
+                        reply
+                    )
+                    : telegramClient_.editMessageTextWithKeyboard(
+                        chatId,
+                        messageId,
+                        reply,
+                        keyboard
+                    );
+
+            if (!edited) {
                 std::cerr
                     << "Failed to edit callback message."
                     << std::endl;
