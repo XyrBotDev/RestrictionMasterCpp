@@ -23,12 +23,39 @@ private:
     BotManager& botManager_;
     AccessControl& accessControl_;
 
-    std::string handleStart(std::int64_t userId);
-    std::string handleHelp(std::int64_t userId);
-    std::string handlePremium(std::int64_t userId);
-    std::string handleSettings(std::int64_t userId);
-    std::string handleBotList(std::int64_t userId);
-    std::string handleBotStats(std::int64_t userId);
+    std::string handleStart(
+        std::int64_t userId
+    );
+
+    std::string handleLink(
+        std::int64_t userId,
+        const std::string& link
+    );
+
+    std::string handleText(
+        std::int64_t userId,
+        const std::string& text
+    );
+
+    std::string handleHelp(
+        std::int64_t userId
+    );
+
+    std::string handlePremium(
+        std::int64_t userId
+    );
+
+    std::string handleSettings(
+        std::int64_t userId
+    );
+
+    std::string handleBotList(
+        std::int64_t userId
+    );
+
+    std::string handleBotStats(
+        std::int64_t userId
+    );
 
     std::string handleBotMaintenance(
         std::int64_t userId,
