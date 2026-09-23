@@ -550,154 +550,11 @@ void BotService::processUpdate(
             updateId + 1;
     }
 
-    std::string fullMessage;
-
-    if (
-        extractObject(
-            update,
-            "message",
-            fullMessage
-        )
-    ) {
-        std::int64_t userId = 0;
-        std::int64_t chatId = 0;
-
-        std::string from;
-
-        if (
-            extractObject(
-                fullMessage,
-                "from",
-                from
-            )
-        ) {
-            if (
-                !extractInt(
-                    from,
-                    "id",
-                    userId
-                )
-            ) {
-                return;
-            }
-        } else {
-            return;
-        }
-
-        std::string chat;
-
-        if (
-            extractObject(
-                fullMessage,
-                "chat",
-                chat
-            )
-        ) {
-            if (
-                !extractInt(
-                    chat,
-                    "id",
-                    chatId
-                )
-            ) {
-                return;
-            }
-        } else {
-            return;
-        }
-
-        std::string text;
-
-        if (
-            !extractString(
-                fullMessage,
-                "text",
-                text
-            )
-        ) {
-            return;
-        }
-
-        text = trim(text);
-
-        if (text.empty()) {
-            return;
-        }
-
-        std::string command = text;
-        std::string arguments;
-
-        const std::size_t space =
-            text.find_first_of(
-                " \t\r\n"
-            );
-
-        if (space != std::string::npos) {
-            command =
-                text.substr(
-                    0,
-                    space
-                );
-
-            arguments =
-                trim(
-                    text.substr(
-                        space + 1
-                    )
-                );
-        }
-
-        if (
-            !command.empty() &&
-            command[0] == '/'
-        ) {
-            const std::size_t at =
-                command.find('@');
-
-            if (at != std::string::npos) {
-                command =
-                    command.substr(
-                        0,
-                        at
-                    );
-            }
-
-            const std::string reply =
-                handleCommand(
-                    userId,
-                    command,
-                    arguments
-                );
-
-            if (!reply.empty()) {
-                const std::string keyboard =
-                    keyboardForCommand(
-                        command,
-                        arguments
-                    );
-
-                const bool sent =
-                    keyboard.empty()
-                        ? telegramClient_.sendMessage(
-                            chatId,
-                            reply
-                        )
-                        : telegramClient_.sendMessageWithKeyboard(
-                            chatId,
-                            reply,
-                            keyboard
-                        );
-
-                if (!sent) {
-                    std::cerr
-                        << "Failed to send command response."
-                        << std::endl;
-                }
-            }
-        }
-
-        return;
-    }
+    /*
+     * IMPORTANT:
+     * callback_query updates also contain a nested "message".
+     * Therefore callback_query MUST be processed before message.
+     */
 
     std::string callback;
 
@@ -709,29 +566,27 @@ void BotService::processUpdate(
         )
     ) {
         std::int64_t userId = 0;
-
-        std::string callbackData;
-        std::string callbackId;
+        std::int64_t messageId = 0;
+        std::int64_t chatId = 0;
 
         std::string from;
+        std::string callbackData;
+        std::string callbackId;
+        std::string callbackMessage;
+        std::string chat;
 
         if (
-            extractObject(
+            !extractObject(
                 callback,
                 "from",
                 from
+            ) ||
+            !extractInt(
+                from,
+                "id",
+                userId
             )
         ) {
-            if (
-                !extractInt(
-                    from,
-                    "id",
-                    userId
-                )
-            ) {
-                return;
-            }
-        } else {
             return;
         }
 
@@ -751,13 +606,17 @@ void BotService::processUpdate(
             callbackData
         );
 
+        /*
+         * Always answer the callback.
+         * Otherwise Telegram keeps showing the loading spinner.
+         */
+
         telegramClient_.answerCallbackQuery(
             callbackId
         );
 
-        std::string callbackMessage;
-
         if (
+            callbackData.empty() ||
             !extractObject(
                 callback,
                 "message",
@@ -766,8 +625,6 @@ void BotService::processUpdate(
         ) {
             return;
         }
-
-        std::int64_t messageId = 0;
 
         if (
             !extractInt(
@@ -783,10 +640,6 @@ void BotService::processUpdate(
             );
         }
 
-        std::int64_t chatId = 0;
-
-        std::string chat;
-
         if (
             extractObject(
                 callbackMessage,
@@ -801,7 +654,10 @@ void BotService::processUpdate(
             );
         }
 
-        if (callbackData.empty()) {
+        if (
+            chatId == 0 ||
+            messageId == 0
+        ) {
             return;
         }
 
@@ -811,35 +667,220 @@ void BotService::processUpdate(
                 callbackData
             );
 
-        if (
-            !reply.empty() &&
-            chatId != 0 &&
-            messageId != 0
-        ) {
-            const std::string keyboard =
-                keyboardForCallback(
-                    callbackData
+        if (reply.empty()) {
+            return;
+        }
+
+        const std::string keyboard =
+            keyboardForCallback(
+                callbackData
+            );
+
+        const bool edited =
+            keyboard.empty()
+                ? telegramClient_.editMessageText(
+                    chatId,
+                    messageId,
+                    reply
+                )
+                : telegramClient_.editMessageTextWithKeyboard(
+                    chatId,
+                    messageId,
+                    reply,
+                    keyboard
                 );
 
-            const bool edited =
+        if (!edited) {
+            std::cerr
+                << "Failed to edit callback message."
+                << std::endl;
+        }
+
+        return;
+    }
+
+    /*
+     * Normal Telegram message.
+     */
+
+    std::string fullMessage;
+
+    if (
+        !extractObject(
+            update,
+            "message",
+            fullMessage
+        )
+    ) {
+        return;
+    }
+
+    std::int64_t userId = 0;
+    std::int64_t chatId = 0;
+
+    std::string from;
+    std::string chat;
+
+    if (
+        !extractObject(
+            fullMessage,
+            "from",
+            from
+        ) ||
+        !extractInt(
+            from,
+            "id",
+            userId
+        )
+    ) {
+        return;
+    }
+
+    if (
+        !extractObject(
+            fullMessage,
+            "chat",
+            chat
+        ) ||
+        !extractInt(
+            chat,
+            "id",
+            chatId
+        )
+    ) {
+        return;
+    }
+
+    std::string text;
+
+    if (
+        !extractString(
+            fullMessage,
+            "text",
+            text
+        )
+    ) {
+        return;
+    }
+
+    text = trim(text);
+
+    if (text.empty()) {
+        return;
+    }
+
+    std::string command = text;
+    std::string arguments;
+
+    const std::size_t space =
+        text.find_first_of(
+            " \t\r\n"
+        );
+
+    if (space != std::string::npos) {
+        command =
+            text.substr(
+                0,
+                space
+            );
+
+        arguments =
+            trim(
+                text.substr(
+                    space + 1
+                )
+            );
+    }
+
+    if (
+        !command.empty() &&
+        command[0] == '/'
+    ) {
+        const std::size_t at =
+            command.find('@');
+
+        if (at != std::string::npos) {
+            command =
+                command.substr(
+                    0,
+                    at
+                );
+        }
+
+        const std::string reply =
+            handleCommand(
+                userId,
+                command,
+                arguments
+            );
+
+        if (!reply.empty()) {
+            const std::string keyboard =
+                keyboardForCommand(
+                    command,
+                    arguments
+                );
+
+            const bool sent =
                 keyboard.empty()
-                    ? telegramClient_.editMessageText(
+                    ? telegramClient_.sendMessage(
                         chatId,
-                        messageId,
                         reply
                     )
-                    : telegramClient_.editMessageTextWithKeyboard(
+                    : telegramClient_.sendMessageWithKeyboard(
                         chatId,
-                        messageId,
                         reply,
                         keyboard
                     );
 
-            if (!edited) {
+            if (!sent) {
                 std::cerr
-                    << "Failed to edit callback message."
+                    << "Failed to send command response."
                     << std::endl;
             }
+        }
+
+        return;
+    }
+
+    /*
+     * Ordinary text / Telegram link.
+     *
+     * The transfer engine is not connected yet, but the message is no
+     * longer silently ignored.
+     */
+
+    const bool isTelegramLink =
+        text.find("https://t.me/") != std::string::npos ||
+        text.find("http://t.me/") != std::string::npos ||
+        text.find("t.me/") != std::string::npos ||
+        text.find("https://telegram.me/") != std::string::npos ||
+        text.find("telegram.me/") != std::string::npos;
+
+    const std::string reply =
+        isTelegramLink
+            ? handleCommand(
+                userId,
+                "/link",
+                text
+            )
+            : handleCommand(
+                userId,
+                "/text",
+                text
+            );
+
+    if (!reply.empty()) {
+        const bool sent =
+            telegramClient_.sendMessage(
+                chatId,
+                reply
+            );
+
+        if (!sent) {
+            std::cerr
+                << "Failed to send message response."
+                << std::endl;
         }
     }
 }
@@ -900,6 +941,52 @@ void BotService::pollingLoop() {
                         }
 
                         if (
+                            inString &&
+                            character == '\\'
+                        ) {
+                            escaped = true;
+                            continue;
+                        }
+
+                        if (character == '"') {
+                            inString =
+                                !inString;
+                            continue;
+                        }
+
+                        if (inString) {
+                            continue;
+                        }
+
+                        if (character == '{') {
+                            ++depth;
+                        } else if (
+                            character == '}'
+                        ) {
+                            --depth;
+
+                            if (depth == 0) {
+                                updateEnd =
+                                    i + 1;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (
+                        updateEnd ==
+                        std::string::npos
+                    ) {
+                        break;
+                    }
+
+                    processUpdate(
+                        response.substr(
+                            updateStart,
+                            updateEnd -
+                                updateStart
+                        )
+                                        if (
                             inString &&
                             character == '\\'
                         ) {
