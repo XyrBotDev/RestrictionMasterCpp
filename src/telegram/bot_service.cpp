@@ -606,11 +606,6 @@ void BotService::processUpdate(
             callbackData
         );
 
-        /*
-         * Always answer the callback.
-         * Otherwise Telegram keeps showing the loading spinner.
-         */
-
         telegramClient_.answerCallbackQuery(
             callbackId
         );
@@ -698,10 +693,6 @@ void BotService::processUpdate(
 
         return;
     }
-
-    /*
-     * Normal Telegram message.
-     */
 
     std::string fullMessage;
 
@@ -821,6 +812,7 @@ void BotService::processUpdate(
                     arguments
                 );
 
+        // PART 1 ENDS HERE
             const bool sent =
                 keyboard.empty()
                     ? telegramClient_.sendMessage(
@@ -845,9 +837,6 @@ void BotService::processUpdate(
 
     /*
      * Ordinary text / Telegram link.
-     *
-     * The transfer engine is not connected yet, but the message is no
-     * longer silently ignored.
      */
 
     const bool isTelegramLink =
@@ -941,52 +930,6 @@ void BotService::pollingLoop() {
                         }
 
                         if (
-                            inString &&
-                            character == '\\'
-                        ) {
-                            escaped = true;
-                            continue;
-                        }
-
-                        if (character == '"') {
-                            inString =
-                                !inString;
-                            continue;
-                        }
-
-                        if (inString) {
-                            continue;
-                        }
-
-                        if (character == '{') {
-                            ++depth;
-                        } else if (
-                            character == '}'
-                        ) {
-                            --depth;
-
-                            if (depth == 0) {
-                                updateEnd =
-                                    i + 1;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (
-                        updateEnd ==
-                        std::string::npos
-                    ) {
-                        break;
-                    }
-
-                    processUpdate(
-                        response.substr(
-                            updateStart,
-                            updateEnd -
-                                updateStart
-                        )
-                                        if (
                             inString &&
                             character == '\\'
                         ) {
