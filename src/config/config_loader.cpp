@@ -2,87 +2,60 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <string>
 
 namespace {
 
 std::string getEnv(const char* name) {
     const char* value = std::getenv(name);
 
-    if (value == nullptr) {
-        return "";
+    if (!value) {
+        return {};
     }
 
-    return value;
+    return std::string(value);
 }
 
-bool checkVariable(
-    const char* name,
-    const std::string& value
-) {
-    if (value.empty()) {
-        std::cerr << "Missing environment variable: "
-                  << name
-                  << std::endl;
-        return false;
+}
+
+bool ConfigLoader::load(Config& config) {
+    config.main_bot_token = getEnv("BOT_TOKEN");
+
+    config.mongodb_uri = getEnv("MONGODB_URI");
+
+    if (config.mongodb_uri.empty()) {
+        config.mongodb_uri = getEnv("MONGO_URL");
     }
 
-    return true;
-}
-
-}
-
-bool ConfigLoader::load(
-    const std::string& filePath,
-    AppConfig& config
-) {
-    (void)filePath;
-
-    config.bot_token = getEnv("BOT_TOKEN");
-    config.mongo_uri = getEnv("MONGO_URL");
     config.database_name = getEnv("DATABASE_NAME");
 
     const std::string ownerId = getEnv("OWNER_ID");
 
-    bool valid = true;
+    if (!ownerId.empty()) {
+        try {
+            config.owner_id = std::stoll(ownerId);
+        } catch (...) {
+            config.owner_id = 0;
+        }
+    }
 
-    valid &= checkVariable(
-        "BOT_TOKEN",
-        config.bot_token
-    );
-
-    valid &= checkVariable(
-        "MONGO_URI",
-        config.mongo_uri
-    );
-
-    valid &= checkVariable(
-        "DATABASE_NAME",
-        config.database_name
-    );
-
-    valid &= checkVariable(
-        "OWNER_ID",
-        ownerId
-    );
-
-    if (!valid) {
+    if (config.main_bot_token.empty()) {
+        std::cerr << "BOT_TOKEN is missing." << std::endl;
         return false;
     }
 
-    try {
-        config.owner_id = std::stoll(ownerId);
-    } catch (...) {
-        std::cerr << "Invalid OWNER_ID."
-                  << std::endl;
+    if (config.mongodb_uri.empty()) {
+        std::cerr
+            << "MONGODB_URI or MONGO_URL is missing."
+            << std::endl;
 
-        config.owner_id = 0;
         return false;
     }
 
-    if (config.owner_id == 0) {
-        std::cerr << "Invalid OWNER_ID."
-                  << std::endl;
+    if (config.database_name.empty()) {
+        std::cerr
+            << "DATABASE_NAME is missing."
+            << std::endl;
+
         return false;
     }
 
