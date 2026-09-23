@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(CURL REQUIRED)
+find_package(mongocxx REQUIRED CONFIG)
 
 add_executable(RestrictionMasterCpp
     src/main.cpp
@@ -34,14 +35,18 @@ add_executable(RestrictionMasterCpp
     src/telegram/telegram.cpp
 
     src/transfer/transfer_manager.cpp
-
     src/upload/upload_manager.cpp
 )
 
-target_include_directories(RestrictionMasterCpp PRIVATE
+target_include_directories(
+    RestrictionMasterCpp
+    PRIVATE
     ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(RestrictionMasterCpp PRIVATE
+target_link_libraries(
+    RestrictionMasterCpp
+    PRIVATE
     CURL::libcurl
+    mongo::mongocxx_shared
 )
