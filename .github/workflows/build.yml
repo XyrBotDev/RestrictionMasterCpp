@@ -9,19 +9,61 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ make libcurl4-openssl-dev
+          sudo apt-get install -y \
+            cmake \
+            g++ \
+            make \
+            git \
+            curl \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libsasl2-dev \
+            zlib1g-dev
 
-      - name: Configure
-        run: cmake -S . -B build
+      - name: Install MongoDB C++ Driver
+        run: |
+          curl -L \
+            https://github.com/mongodb/mongo-cxx-driver/releases/download/r4.5.3/mongo-cxx-driver-r4.5.3.tar.gz \
+            -o mongo-cxx-driver.tar.gz
 
-      - name: Build
-        run: cmake --build build --parallel
+          tar -xzf mongo-cxx-driver.tar.gz
+
+          cmake \
+            -S mongo-cxx-driver-r4.5.3 \
+            -B mongo-cxx-driver-r4.5.3/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DENABLE_TESTS=OFF
+
+          cmake \
+            --build mongo-cxx-driver-r4.5.3/build \
+            --parallel 2
+
+          sudo cmake \
+            --install mongo-cxx-driver-r4.5.3/build
+
+          sudo ldconfig
+
+      - name: Configure project
+        run: |
+          cmake \
+            -S . \
+            -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_PREFIX_PATH=/usr/local
+
+      - name: Build project
+        run: |
+          cmake --build build --parallel 2
