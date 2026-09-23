@@ -20,7 +20,10 @@ std::string CommandHandler::handle(
 ) {
     std::string cmd = command;
 
-    if (!cmd.empty() && cmd[0] == '/') {
+    if (
+        !cmd.empty() &&
+        cmd[0] == '/'
+    ) {
         cmd.erase(0, 1);
     }
 
@@ -29,12 +32,28 @@ std::string CommandHandler::handle(
         cmd.end(),
         cmd.begin(),
         [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
+            return static_cast<char>(
+                std::tolower(c)
+            );
         }
     );
 
     if (cmd == "start") {
         return handleStart(userId);
+    }
+
+    if (cmd == "link") {
+        return handleLink(
+            userId,
+            arguments
+        );
+    }
+
+    if (cmd == "text") {
+        return handleText(
+            userId,
+            arguments
+        );
     }
 
     if (cmd == "help") {
@@ -62,7 +81,10 @@ std::string CommandHandler::handle(
             return "❌ Admin access required.";
         }
 
-        return handleBotMaintenance(userId, arguments);
+        return handleBotMaintenance(
+            userId,
+            arguments
+        );
     }
 
     if (cmd == "dummy") {
@@ -70,7 +92,10 @@ std::string CommandHandler::handle(
             return "❌ Admin access required.";
         }
 
-        return handleDummy(userId, arguments);
+        return handleDummy(
+            userId,
+            arguments
+        );
     }
 
     if (cmd == "rdummy") {
@@ -78,13 +103,68 @@ std::string CommandHandler::handle(
             return "❌ Admin access required.";
         }
 
-        return handleRemoveDummy(userId);
+        return handleRemoveDummy(
+            userId
+        );
     }
 
     return "❌ Unknown command. Use /help";
 }
 
-std::string CommandHandler::handleStart(std::int64_t userId) {
+std::string CommandHandler::handleLink(
+    std::int64_t userId,
+    const std::string& link
+) {
+    if (link.empty()) {
+        return "❌ Please send a Telegram link.";
+    }
+
+    if (accessControl_.isBanned(userId)) {
+        return "🚫 Your account is banned.";
+    }
+
+    if (
+        accessControl_.isMaintenance() &&
+        !accessControl_.isAdmin(userId)
+    ) {
+        return
+            "🔧 The bot is currently under maintenance.";
+    }
+
+    /*
+     * The actual authorized Telegram user-session/media
+     * transfer engine is not connected to this C++ build yet.
+     *
+     * Do not claim that a file was downloaded when it was not.
+     */
+
+    return
+        "🔗 Telegram link received.\n\n"
+        "Link: " +
+        link +
+        "\n\n"
+        "⏳ The media transfer engine is not connected "
+        "in this C++ build yet.";
+}
+
+std::string CommandHandler::handleText(
+    std::int64_t userId,
+    const std::string& text
+) {
+    (void)userId;
+
+    if (text.empty()) {
+        return "";
+    }
+
+    return
+        "👋 I received your message.\n\n"
+        "📥 Send a Telegram message link to begin.";
+}
+
+std::string CommandHandler::handleStart(
+    std::int64_t userId
+) {
     (void)userId;
 
     return
@@ -93,7 +173,9 @@ std::string CommandHandler::handleStart(std::int64_t userId) {
         "Use /help to see available commands.";
 }
 
-std::string CommandHandler::handleHelp(std::int64_t userId) {
+std::string CommandHandler::handleHelp(
+    std::int64_t userId
+) {
     (void)userId;
 
     return
@@ -108,7 +190,9 @@ std::string CommandHandler::handleHelp(std::int64_t userId) {
         "📥 Send a Telegram link to start downloading.";
 }
 
-std::string CommandHandler::handlePremium(std::int64_t userId) {
+std::string CommandHandler::handlePremium(
+    std::int64_t userId
+) {
     (void)userId;
 
     return
@@ -121,7 +205,9 @@ std::string CommandHandler::handlePremium(std::int64_t userId) {
         "👑 Contact the owner for Premium.";
 }
 
-std::string CommandHandler::handleSettings(std::int64_t userId) {
+std::string CommandHandler::handleSettings(
+    std::int64_t userId
+) {
     (void)userId;
 
     return
@@ -132,44 +218,66 @@ std::string CommandHandler::handleSettings(std::int64_t userId) {
         "🔄 Reset Settings";
 }
 
-std::string CommandHandler::handleBotList(std::int64_t userId) {
+std::string CommandHandler::handleBotList(
+    std::int64_t userId
+) {
     (void)userId;
 
-    const auto bots = botManager_.getAllBots();
+    const auto bots =
+        botManager_.getAllBots();
 
     if (bots.empty()) {
-        return "🤖 **BOT LIST**\n\nNo bots connected.";
+        return
+            "🤖 **BOT LIST**\n\n"
+            "No bots connected.";
     }
 
     std::ostringstream out;
 
-    out << "🤖 **CONNECTED BOTS**\n\n";
+    out
+        << "🤖 **CONNECTED BOTS**\n\n";
 
     for (const auto& bot : bots) {
-        out << "🔢 **"
+        out
+            << "🔢 **"
             << bot.number
             << "** — @"
-            << (bot.username.empty() ? "unknown" : bot.username)
+            << (
+                bot.username.empty()
+                    ? "unknown"
+                    : bot.username
+            )
             << "\n";
 
-        out << "👥 Users: "
+        out
+            << "👥 Users: "
             << bot.users
             << "\n";
 
-        out << (bot.enabled ? "🟢 Active" : "🔴 Disabled")
+        out
+            << (
+                bot.enabled
+                    ? "🟢 Active"
+                    : "🔴 Disabled"
+            )
             << "\n\n";
     }
 
     return out.str();
 }
 
-std::string CommandHandler::handleBotStats(std::int64_t userId) {
+std::string CommandHandler::handleBotStats(
+    std::int64_t userId
+) {
     (void)userId;
 
-    const auto bots = botManager_.getAllBots();
+    const auto bots =
+        botManager_.getAllBots();
 
     if (bots.empty()) {
-        return "📊 **BOT STATS**\n\nNo bots connected.";
+        return
+            "📊 **BOT STATS**\n\n"
+            "No bots connected.";
     }
 
     std::int64_t totalUsers = 0;
@@ -182,10 +290,17 @@ std::string CommandHandler::handleBotStats(std::int64_t userId) {
 
     std::ostringstream out;
 
-    out << "📊 **BOT STATISTICS**\n\n"
-        << "🤖 Connected Bots: " << bots.size() << "\n"
-        << "👥 Total Users: " << totalUsers << "\n"
-        << "📥 Total Downloads: " << totalDownloads << "\n";
+    out
+        << "📊 **BOT STATISTICS**\n\n"
+        << "🤖 Connected Bots: "
+        << bots.size()
+        << "\n"
+        << "👥 Total Users: "
+        << totalUsers
+        << "\n"
+        << "📥 Total Downloads: "
+        << totalDownloads
+        << "\n";
 
     return out.str();
 }
@@ -196,14 +311,21 @@ std::string CommandHandler::handleBotMaintenance(
 ) {
     (void)userId;
 
-    std::istringstream input(arguments);
+    std::istringstream input(
+        arguments
+    );
 
     int botNumber = 0;
     std::string mode;
 
-    input >> botNumber >> mode;
+    input
+        >> botNumber
+        >> mode;
 
-    if (botNumber <= 0 || mode.empty()) {
+    if (
+        botNumber <= 0 ||
+        mode.empty()
+    ) {
         return
             "🔧 **BOT MAINTENANCE**\n\n"
             "Usage:\n"
@@ -216,23 +338,36 @@ std::string CommandHandler::handleBotMaintenance(
         mode.end(),
         mode.begin(),
         [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
+            return static_cast<char>(
+                std::tolower(c)
+            );
         }
     );
 
-    if (mode != "on" && mode != "off") {
+    if (
+        mode != "on" &&
+        mode != "off"
+    ) {
         return "❌ Use `on` or `off`.";
     }
 
-    const bool enabled = mode == "on";
+    const bool enabled =
+        mode == "on";
 
-    if (!botManager_.setMaintenance(botNumber, enabled)) {
+    if (
+        !botManager_.setMaintenance(
+            botNumber,
+            enabled
+        )
+    ) {
         return "❌ Bot number not found.";
     }
 
     return enabled
-        ? "🔧 Maintenance **ON** for bot #" + std::to_string(botNumber)
-        : "✅ Maintenance **OFF** for bot #" + std::to_string(botNumber);
+        ? "🔧 Maintenance **ON** for bot #" +
+            std::to_string(botNumber)
+        : "✅ Maintenance **OFF** for bot #" +
+            std::to_string(botNumber);
 }
 
 std::string CommandHandler::handleDummy(
@@ -244,22 +379,33 @@ std::string CommandHandler::handleDummy(
     if (arguments.empty()) {
         return
             "📢 **Dummy Channel Setup**\n\n"
-            "Please add me to your authorized channel and then press Refresh.";
+            "Please add me to your authorized "
+            "channel and then press Refresh.";
     }
 
-    std::string channel = arguments;
+    std::string channel =
+        arguments;
 
-    if (channel[0] != '@') {
-        channel = "@" + channel;
+    if (
+        channel[0] != '@'
+    ) {
+        channel =
+            "@" + channel;
     }
 
-    if (!botManager_.setDummyChannel(channel)) {
-        return "❌ Failed to set dummy channel.";
+    if (
+        !botManager_.setDummyChannel(
+            channel
+        )
+    ) {
+        return
+            "❌ Failed to set dummy channel.";
     }
 
     return
         "✅ **Dummy Channel Set**\n\n"
-        "Channel: " + channel;
+        "Channel: " +
+        channel;
 }
 
 std::string CommandHandler::handleRemoveDummy(
@@ -267,8 +413,11 @@ std::string CommandHandler::handleRemoveDummy(
 ) {
     (void)userId;
 
-    if (!botManager_.removeDummyChannel()) {
-        return "❌ No dummy channel is configured.";
+    if (
+        !botManager_.removeDummyChannel()
+    ) {
+        return
+            "❌ No dummy channel is configured.";
     }
 
     return "✅ Dummy channel removed.";
