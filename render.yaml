@@ -1,15 +1,19 @@
 services:
-  - type: worker
+  - type: web
     name: restriction-master-cpp
     runtime: docker
     buildCommand: cmake -S . -B build && cmake --build build --parallel
     startCommand: ./build/RestrictionMasterCpp
+
     envVars:
       - key: BOT_TOKEN
         sync: false
+
       - key: MONGO_URI
         sync: false
+
       - key: DATABASE_NAME
         value: restriction_master
+
       - key: OWNER_ID
         sync: false
