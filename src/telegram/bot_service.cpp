@@ -110,6 +110,13 @@ bool BotService::start() {
         << "Telegram bot verified."
         << std::endl;
 
+    if (!botId.empty()) {
+        std::cout
+            << "Bot ID: "
+            << botId
+            << std::endl;
+    }
+
     if (!username.empty()) {
         std::cout
             << "Bot username: @"
@@ -131,16 +138,6 @@ bool BotService::start() {
 }
 
 bool BotService::stop() {
-    if (!running_) {
-        if (pollingThread_.joinable()) {
-            pollingThread_.join();
-        }
-
-        telegramClient_.stop();
-
-        return true;
-    }
-
     running_ = false;
 
     telegramClient_.stop();
@@ -225,20 +222,20 @@ bool BotService::extractInt(
         ++start;
     }
 
-    std::size_t end = start;
+    const std::size_t numberStart = start;
 
     while (
-        end < json.size() &&
+        start < json.size() &&
         std::isdigit(
             static_cast<unsigned char>(
-                json[end]
+                json[start]
             )
         )
     ) {
-        ++end;
+        ++start;
     }
 
-    if (end == start) {
+    if (start == numberStart) {
         return false;
     }
 
@@ -246,8 +243,8 @@ bool BotService::extractInt(
         value =
             std::stoll(
                 json.substr(
-                    start,
-                    end - start
+                    numberStart,
+                    start - numberStart
                 )
             );
 
@@ -280,7 +277,6 @@ bool BotService::extractString(
         position + search.size();
 
     std::string result;
-
     bool escaped = false;
 
     for (
@@ -441,57 +437,69 @@ void BotService::processUpdate(
         return;
     }
 
-    if (
-        updateId >= updateOffset_
-    ) {
+    if (updateId >= updateOffset_) {
         updateOffset_ =
             updateId + 1;
     }
 
-    std::string message;
+    /*
+     * Normal message
+     */
+    std::string fullMessage;
 
     if (extractObject(
             update,
             "message",
-            message
+            fullMessage
         )) {
         std::int64_t userId = 0;
         std::int64_t chatId = 0;
 
-        if (!extractObject(
-                message,
-                "from",
-                message
-            )) {
-            return;
-        }
+        /*
+         * message.from.id
+         */
+        std::string from;
 
-        if (!extractInt(
-                message,
-                "id",
-                userId
-            )) {
-            return;
-        }
-
-        std::string fullMessage;
-
-        if (!extractObject(
-                update,
-                "message",
-                fullMessage
-            )) {
-            return;
-        }
-
-        if (!extractInt(
+        if (extractObject(
                 fullMessage,
-                "id",
-                chatId
+                "from",
+                from
             )) {
+            if (!extractInt(
+                    from,
+                    "id",
+                    userId
+                )) {
+                return;
+            }
+        } else {
             return;
         }
 
+        /*
+         * message.chat.id
+         */
+        std::string chat;
+
+        if (extractObject(
+                fullMessage,
+                "chat",
+                chat
+            )) {
+            if (!extractInt(
+                    chat,
+                    "id",
+                    chatId
+                )) {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        /*
+         * message.text
+         */
         std::string text;
 
         if (!extractString(
@@ -531,6 +539,10 @@ void BotService::processUpdate(
                 );
         }
 
+        /*
+         * Only commands are handled
+         * at this stage.
+         */
         if (
             !command.empty() &&
             command[0] == '/'
@@ -554,16 +566,23 @@ void BotService::processUpdate(
                 );
 
             if (!reply.empty()) {
-                telegramClient_.sendMessage(
-                    chatId,
-                    reply
-                );
+                if (!telegramClient_.sendMessage(
+                        chatId,
+                        reply
+                    )) {
+                    std::cerr
+                        << "Failed to send command response."
+                        << std::endl;
+                }
             }
         }
 
         return;
     }
 
+    /*
+     * Callback query
+     */
     std::string callback;
 
     if (extractObject(
@@ -572,27 +591,63 @@ void BotService::processUpdate(
             callback
         )) {
         std::int64_t userId = 0;
+
         std::string callbackData;
         std::string callbackId;
 
-        extractInt(
-            callback,
-            "id",
-            userId
-        );
+        /*
+         * callback_query.from.id
+         */
+        std::string from;
 
+        if (extractObject(
+                callback,
+                "from",
+                from
+            )) {
+            if (!extractInt(
+                    from,
+                    "id",
+                    userId
+                )) {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        /*
+         * callback_query.id
+         *
+         * This is a STRING, not a user ID.
+         */
+        if (!extractString(
+                callback,
+                "id",
+                callbackId
+            )) {
+            return;
+        }
+
+        /*
+         * callback_query.data
+         */
         extractString(
             callback,
             "data",
             callbackData
         );
 
-        extractString(
-            callback,
-            "id",
+        /*
+         * Always acknowledge the callback.
+         */
+        telegramClient_.answerCallbackQuery(
             callbackId
         );
 
+        /*
+         * Callback message.
+         */
         std::string callbackMessage;
 
         if (!extractObject(
@@ -600,21 +655,37 @@ void BotService::processUpdate(
                 "message",
                 callbackMessage
             )) {
-            telegramClient_.answerCallbackQuery(
-                callbackId
-            );
-
             return;
         }
 
-        std::int64_t chatId = 0;
+        /*
+         * callback_query.message.message_id
+         */
         std::int64_t messageId = 0;
 
-        extractInt(
-            callbackMessage,
-            "id",
-            messageId
-        );
+        if (!extractInt(
+                callbackMessage,
+                "message_id",
+                messageId
+            )) {
+            /*
+             * Telegram callback message uses
+             * "message_id" in our extracted object
+             * only when this object is wrapped.
+             *
+             * Fallback to the standard message "id".
+             */
+            extractInt(
+                callbackMessage,
+                "id",
+                messageId
+            );
+        }
+
+        /*
+         * callback_query.message.chat.id
+         */
+        std::int64_t chatId = 0;
 
         std::string chat;
 
@@ -630,25 +701,30 @@ void BotService::processUpdate(
             );
         }
 
+        if (callbackData.empty()) {
+            return;
+        }
+
         const std::string reply =
             handleCallback(
                 userId,
                 callbackData
             );
 
-        telegramClient_.answerCallbackQuery(
-            callbackId
-        );
-
         if (
             !reply.empty() &&
-            chatId != 0
+            chatId != 0 &&
+            messageId != 0
         ) {
-            telegramClient_.editMessageText(
-                chatId,
-                messageId,
-                reply
-            );
+            if (!telegramClient_.editMessageText(
+                    chatId,
+                    messageId,
+                    reply
+                )) {
+                std::cerr
+                    << "Failed to edit callback message."
+                    << std::endl;
+            }
         }
     }
 }
@@ -690,6 +766,7 @@ void BotService::pollingLoop() {
                     int depth = 0;
                     bool inString = false;
                     bool escaped = false;
+
                     std::size_t updateEnd =
                         std::string::npos;
 
@@ -759,13 +836,15 @@ void BotService::pollingLoop() {
                 }
             }
         } else {
-            std::cerr
-                << "Telegram polling request failed."
-                << std::endl;
+            if (running_) {
+                std::cerr
+                    << "Telegram polling request failed."
+                    << std::endl;
 
-            std::this_thread::sleep_for(
-                std::chrono::seconds(2)
-            );
+                std::this_thread::sleep_for(
+                    std::chrono::seconds(2)
+                );
+            }
         }
     }
 
