@@ -32,14 +32,133 @@ std::string CallbackHandler::handle(
         return handleBotList(userId);
     }
 
-    const std::string prefix = "bot_control:";
+    if (callbackData == "bot_stats") {
+        return commandHandler_.handle(
+            userId,
+            "/botstats",
+            ""
+        );
+    }
 
-    if (callbackData.rfind(prefix, 0) == 0) {
+    if (callbackData == "settings_notifications") {
+        return
+            "🔔 **Notifications**\n\n"
+            "Notification settings are ready.";
+    }
+
+    if (callbackData == "settings_silent") {
+        return
+            "🌙 **Silent Mode**\n\n"
+            "Silent mode settings are ready.";
+    }
+
+    if (callbackData == "settings_language") {
+        return
+            "🌐 **Language**\n\n"
+            "Language settings are ready.";
+    }
+
+    if (callbackData == "dummy_refresh") {
+        return handleDummyRefresh(userId);
+    }
+
+    if (callbackData == "range_stop") {
+        return
+            "⏹ **Range Download**\n\n"
+            "No active range download is running.";
+    }
+
+    const std::string botControlPrefix =
+        "bot_control:";
+
+    if (
+        callbackData.rfind(
+            botControlPrefix,
+            0
+        ) == 0
+    ) {
         try {
             const int botNumber =
-                std::stoi(callbackData.substr(prefix.size()));
+                std::stoi(
+                    callbackData.substr(
+                        botControlPrefix.size()
+                    )
+                );
 
-            return handleBotControl(userId, botNumber);
+            return handleBotControl(
+                userId,
+                botNumber
+            );
+        } catch (...) {
+            return "❌ Invalid bot number.";
+        }
+    }
+
+    const std::string maintenanceOnPrefix =
+        "maintenance_on:";
+
+    if (
+        callbackData.rfind(
+            maintenanceOnPrefix,
+            0
+        ) == 0
+    ) {
+        try {
+            const int botNumber =
+                std::stoi(
+                    callbackData.substr(
+                        maintenanceOnPrefix.size()
+                    )
+                );
+
+            if (
+                !botManager_.setMaintenance(
+                    botNumber,
+                    true
+                )
+            ) {
+                return "❌ Bot number not found.";
+            }
+
+            return
+                "🔧 Maintenance **ON** for bot #" +
+                std::to_string(botNumber);
+
+        } catch (...) {
+            return "❌ Invalid bot number.";
+        }
+    }
+
+    const std::string maintenanceOffPrefix =
+        "maintenance_off:";
+
+    if (
+        callbackData.rfind(
+            maintenanceOffPrefix,
+            0
+        ) == 0
+    ) {
+        try {
+            const int botNumber =
+                std::stoi(
+                    callbackData.substr(
+                        maintenanceOffPrefix.size()
+                    )
+                );
+
+            if (
+                !botManager_.setMaintenance(
+                    botNumber,
+                    false
+                )
+            ) {
+                return "❌ Bot number not found.";
+            }
+
+            return
+                "✅ Maintenance **OFF** for bot #" +
+                std::to_string(botNumber);
+
         } catch (...) {
             return "❌ Invalid bot number.";
         }
@@ -92,24 +211,58 @@ std::string CallbackHandler::handleBotControl(
     std::int64_t userId,
     int botNumber
 ) {
-    const auto bot = botManager_.getBot(botNumber);
+    (void)userId;
+
+    const auto bot =
+        botManager_.getBot(botNumber);
 
     if (!bot.has_value()) {
-        return "❌ Bot #" + std::to_string(botNumber) +
-               " not found.";
+        return
+            "❌ Bot #" +
+            std::to_string(botNumber) +
+            " not found.";
     }
 
     std::ostringstream out;
 
-    out << "🤖 **BOT #" << bot->number << "**\n\n"
+    out
+        << "🤖 **BOT #"
+        << bot->number
+        << "**\n\n"
+
         << "Username: @"
-        << (bot->username.empty() ? "unknown" : bot->username)
+        << (
+            bot->username.empty()
+                ? "unknown"
+                : bot->username
+        )
         << "\n"
-        << "👥 Users: " << bot->users << "\n"
-        << "📥 Downloads: " << bot->downloads << "\n"
-        << (bot->maintenance
+
+        << "👥 Users: "
+        << bot->users
+        << "\n"
+
+        << "📥 Downloads: "
+        << bot->downloads
+        << "\n"
+
+        << (
+            bot->maintenance
                 ? "🔧 Maintenance: ON"
-                : "🟢 Maintenance: OFF");
+                : "🟢 Maintenance: OFF"
+        );
 
     return out.str();
+}
+
+std::string CallbackHandler::handleDummyRefresh(
+    std::int64_t userId
+) {
+    (void)userId;
+
+    return
+        "🔄 **Dummy Channel Refresh**\n\n"
+        "Membership verification is not connected yet. "
+        "The Telegram channel membership check will be "
+        "added in the next step.";
 }
