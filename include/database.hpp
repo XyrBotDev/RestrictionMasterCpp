@@ -15,8 +15,10 @@ class client;
 
 class Database {
 public:
-    Database(const std::string& mongoUri,
-             const std::string& databaseName);
+    Database(
+        const std::string& mongoUri,
+        const std::string& databaseName
+    );
 
     ~Database();
 
