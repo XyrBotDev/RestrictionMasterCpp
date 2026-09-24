@@ -2,7 +2,6 @@
 
 #include <bsoncxx/builder/basic/document.hpp>
 #include <bsoncxx/builder/basic/kvp.hpp>
-#include <bsoncxx/builder/basic/make_document.hpp>
 
 #include <mongocxx/client.hpp>
 #include <mongocxx/collection.hpp>
@@ -16,7 +15,6 @@
 
 using bsoncxx::builder::basic::document;
 using bsoncxx::builder::basic::kvp;
-using bsoncxx::builder::basic::make_document;
 
 Database::Database(
     const std::string& mongoUri,
@@ -30,10 +28,7 @@ Database::~Database() = default;
 
 bool Database::connect() {
     try {
-        if (
-            mongoUri_.empty() ||
-            databaseName_.empty()
-        ) {
+        if (mongoUri_.empty() || databaseName_.empty()) {
             connected_ = false;
             return false;
         }
@@ -49,24 +44,23 @@ bool Database::connect() {
         auto db =
             (*client_)[databaseName_];
 
-        db.run_command(
-            make_document(
-                kvp("ping", 1)
-            )
-        );
+        document ping;
+        ping.append(kvp("ping", 1));
+
+        db.run_command(ping.view());
 
         auto users =
             db["users"];
 
         try {
             mongocxx::options::index options;
-
             options.unique(true);
 
+            document index;
+            index.append(kvp("user_id", 1));
+
             users.create_index(
-                make_document(
-                    kvp("user_id", 1)
-                ),
+                index.view(),
                 options
             );
         } catch (...) {
@@ -115,12 +109,13 @@ bool Database::saveUser(
         auto users =
             db["users"];
 
+        document filter;
+        filter.append(
+            kvp("user_id", user.user_id)
+        );
+
         auto existing =
-            users.find_one(
-                make_document(
-                    kvp("user_id", user.user_id)
-                )
-            );
+            users.find_one(filter.view());
 
         if (existing) {
             return updateUser(user);
@@ -181,12 +176,13 @@ std::optional<User> Database::getUser(
         auto users =
             db["users"];
 
+        document filter;
+        filter.append(
+            kvp("user_id", userId)
+        );
+
         auto result =
-            users.find_one(
-                make_document(
-                    kvp("user_id", userId)
-                )
-            );
+            users.find_one(filter.view());
 
         if (!result) {
             return std::nullopt;
@@ -317,14 +313,18 @@ bool Database::updateUser(
             kvp("silent_mode", user.silent_mode)
         );
 
+        document filter;
+
+        filter.append(
+            kvp("user_id", user.user_id)
+        );
+
         mongocxx::options::replace options;
         options.upsert(true);
 
         auto result =
             users.replace_one(
-                make_document(
-                    kvp("user_id", user.user_id)
-                ),
+                filter.view(),
                 replacement.view(),
                 options
             );
@@ -359,12 +359,14 @@ bool Database::deleteUser(
         auto users =
             db["users"];
 
+        document filter;
+
+        filter.append(
+            kvp("user_id", userId)
+        );
+
         auto result =
-            users.delete_one(
-                make_document(
-                    kvp("user_id", userId)
-                )
-            );
+            users.delete_one(filter.view());
 
         return result &&
                result->deleted_count() > 0;
@@ -391,7 +393,12 @@ std::vector<User> Database::getAllUsers() {
         auto users =
             db["users"];
 
-        for (auto&& doc : users.find({})) {
+        document emptyFilter;
+
+        for (
+            auto&& doc :
+            users.find(emptyFilter.view())
+        ) {
             User user;
 
             if (auto e = doc["user_id"])
@@ -470,8 +477,12 @@ std::int64_t Database::getTotalUsers() {
         auto users =
             db["users"];
 
+        document emptyFilter;
+
         return static_cast<std::int64_t>(
-            users.count_documents({})
+            users.count_documents(
+                emptyFilter.view()
+            )
         );
 
     } catch (...) {
@@ -496,7 +507,12 @@ std::int64_t Database::getTotalDownloads() {
 
         std::int64_t total = 0;
 
-        for (auto&& doc : users.find({})) {
+        document emptyFilter;
+
+        for (
+            auto&& doc :
+            users.find(emptyFilter.view())
+        ) {
             if (auto e = doc["downloads"]) {
                 total +=
                     e.get_int64().value;
