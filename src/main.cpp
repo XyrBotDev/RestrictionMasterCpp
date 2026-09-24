@@ -1,4 +1,3 @@
-#include "../include/config.hpp"
 #include "../include/config_loader.hpp"
 #include "../include/database.hpp"
 #include "../include/access_control.hpp"
@@ -30,8 +29,8 @@ void runHealthServer() {
         << port
         << std::endl;
 
-    // The Render service remains alive through the bot process.
-    // The existing polling service handles Telegram updates.
+    // Render service remains alive through the bot process.
+    // Telegram polling is handled by BotService.
 }
 
 }
@@ -50,9 +49,9 @@ int main() {
         << "========================================"
         << std::endl;
 
-    Config config;
+    AppConfig config;
 
-    if (!ConfigLoader::load(config)) {
+    if (!ConfigLoader::load("", config)) {
         std::cerr
             << "Configuration loading failed."
             << std::endl;
@@ -65,7 +64,7 @@ int main() {
         << std::endl;
 
     Database database(
-        config.mongodb_uri,
+        config.mongo_uri,
         config.database_name
     );
 
@@ -99,7 +98,7 @@ int main() {
 
     BotService botService(
         1,
-        config.main_bot_token,
+        config.bot_token,
         botManager,
         accessControl
     );
