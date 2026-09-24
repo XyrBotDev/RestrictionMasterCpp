@@ -17,13 +17,16 @@ std::string getEnv(const char* name) {
 
 }
 
-bool ConfigLoader::load(Config& config) {
-    config.main_bot_token = getEnv("BOT_TOKEN");
+bool ConfigLoader::load(
+    const std::string& /*filePath*/,
+    AppConfig& config
+) {
+    config.bot_token = getEnv("BOT_TOKEN");
 
-    config.mongodb_uri = getEnv("MONGODB_URI");
+    config.mongo_uri = getEnv("MONGODB_URI");
 
-    if (config.mongodb_uri.empty()) {
-        config.mongodb_uri = getEnv("MONGO_URL");
+    if (config.mongo_uri.empty()) {
+        config.mongo_uri = getEnv("MONGO_URL");
     }
 
     config.database_name = getEnv("DATABASE_NAME");
@@ -38,12 +41,15 @@ bool ConfigLoader::load(Config& config) {
         }
     }
 
-    if (config.main_bot_token.empty()) {
-        std::cerr << "BOT_TOKEN is missing." << std::endl;
+    if (config.bot_token.empty()) {
+        std::cerr
+            << "BOT_TOKEN is missing."
+            << std::endl;
+
         return false;
     }
 
-    if (config.mongodb_uri.empty()) {
+    if (config.mongo_uri.empty()) {
         std::cerr
             << "MONGODB_URI or MONGO_URL is missing."
             << std::endl;
